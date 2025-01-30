@@ -29,7 +29,6 @@ public class TaskController {
   public ResponseEntity create(@RequestBody TaskModel taskModel, HttpServletRequest request) {
     var idUser = request.getAttribute("idUser");
     taskModel.setIdUser((UUID) idUser);
-
     var currentDate = LocalDateTime.now();
 
     if (currentDate.isAfter(taskModel.getStartAt()) || currentDate.isAfter(taskModel.getEndAt())) {
@@ -54,10 +53,23 @@ public class TaskController {
   }
 
   @PutMapping("/{id}")
-  public TaskModel update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request) {
+  public ResponseEntity update(@RequestBody TaskModel taskModel, @PathVariable UUID id, HttpServletRequest request) {
     var task = this.taskRepository.findById(id).orElse(null);
-    Utils.copyNonNullProperties(taskModel, task);
 
-    return this.taskRepository.save(taskModel);
+    if (task == null) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body("Tarefa não encontrada");
+    }
+
+    var idUser = request.getAttribute("idUser");
+
+    if (!task.getIdUser().equals(idUser)) {
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body("Usuário não tem permissão para alterar essa tarefa");
+    }
+
+    Utils.copyNonNullProperties(taskModel, task);
+    var taskUpdate = this.taskRepository.save(taskModel);
+    return ResponseEntity.ok().body(taskUpdate);
   }
 }
